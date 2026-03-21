@@ -159,7 +159,7 @@ Score by match count
 Return sorted results
 ```
 
-**Pros:** Zero setup, no dependencies beyond Bun
+**Pros:** Zero setup, no dependencies beyond Bun\
 **Cons:** Slower on large histories, no stemming ("running" won't match "run")
 
 ### PostgreSQL Search
