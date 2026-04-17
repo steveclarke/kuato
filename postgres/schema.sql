@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     git_branch VARCHAR(255),
     cwd TEXT,
     version VARCHAR(50),
+    hostname TEXT,
     message_count INTEGER DEFAULT 0,
 
     -- Token usage (totals)
@@ -53,6 +54,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_ended_at ON sessions(ended_at DESC);
 CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON sessions(started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_sessions_category ON sessions(category);
+CREATE INDEX IF NOT EXISTS idx_sessions_hostname ON sessions(hostname);
 
 -- Full-text search index (GIN for performance)
 CREATE INDEX IF NOT EXISTS idx_sessions_search_vector ON sessions USING GIN(search_vector);

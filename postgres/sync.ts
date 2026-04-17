@@ -14,6 +14,7 @@
  */
 
 import { readdirSync, statSync, readFileSync } from 'fs';
+import { hostname } from 'os';
 import { join } from 'path';
 import { createHash } from 'crypto';
 import { parseArgs } from 'util';
@@ -26,6 +27,7 @@ const DATABASE_URL = process.env.DATABASE_URL || 'postgres://localhost/claude_se
 const DEFAULT_SESSIONS_DIR =
   process.env.CLAUDE_SESSIONS_DIR ||
   join(process.env.HOME || '', '.claude', 'projects');
+const HOSTNAME = process.env.KUATO_HOSTNAME || hostname();
 
 // Connect to database
 const sql = postgres(DATABASE_URL);
@@ -164,6 +166,7 @@ async function syncSession(
         git_branch,
         cwd,
         version,
+        hostname,
         message_count,
         input_tokens,
         output_tokens,
@@ -185,6 +188,7 @@ async function syncSession(
         ${session.gitBranch},
         ${session.cwd},
         ${session.version},
+        ${HOSTNAME},
         ${session.messageCount},
         ${session.inputTokens},
         ${session.outputTokens},
@@ -206,6 +210,7 @@ async function syncSession(
         git_branch = EXCLUDED.git_branch,
         cwd = EXCLUDED.cwd,
         version = EXCLUDED.version,
+        hostname = EXCLUDED.hostname,
         message_count = EXCLUDED.message_count,
         input_tokens = EXCLUDED.input_tokens,
         output_tokens = EXCLUDED.output_tokens,
@@ -241,6 +246,7 @@ async function sync(baseDir: string, options: SyncOptions): Promise<SyncStats> {
   };
 
   console.log(`Syncing sessions from: ${baseDir}`);
+  console.log(`Hostname: ${HOSTNAME}`);
 
   // Get existing hashes for change detection
   const existingHashes = await getExistingHashes();
