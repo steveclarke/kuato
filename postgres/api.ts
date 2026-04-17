@@ -42,6 +42,7 @@ app.use('*', cors());
  *   until        - Sessions before this date
  *   tools        - Filter by tools (comma-separated)
  *   file_pattern - Filter by file path pattern
+ *   hostname     - Filter by machine hostname (e.g. uber-om, mac-studio)
  *   limit        - Max results (default 20, max 100)
  */
 app.get('/sessions', async (c) => {
@@ -52,6 +53,7 @@ app.get('/sessions', async (c) => {
     until,
     tools,
     file_pattern,
+    hostname,
     limit: limitStr,
   } = c.req.query();
 
@@ -91,6 +93,12 @@ app.get('/sessions', async (c) => {
     params.push(`%${file_pattern}%`);
   }
 
+  // Hostname filtering (exact match)
+  if (hostname) {
+    conditions.push(`hostname = $${paramIndex++}`);
+    params.push(hostname);
+  }
+
   // Full-text search
   let orderBy = 'ended_at DESC';
   let selectFields = `
@@ -98,6 +106,7 @@ app.get('/sessions', async (c) => {
     started_at,
     ended_at,
     git_branch,
+    hostname,
     message_count,
     input_tokens,
     output_tokens,
@@ -154,79 +163,10 @@ app.get('/sessions', async (c) => {
 });
 
 /**
- * Get single session by ID
- */
-app.get('/sessions/:id', async (c) => {
-  const { id } = c.req.param();
-  const { with_transcript } = c.req.query();
-
-  try {
-    const rows = await sql`
-      SELECT
-        id,
-        started_at,
-        ended_at,
-        git_branch,
-        cwd,
-        version,
-        message_count,
-        input_tokens,
-        output_tokens,
-        cache_creation_tokens,
-        cache_read_tokens,
-        tools_used,
-        files_touched,
-        user_messages,
-        models_used,
-        model_tokens,
-        summary,
-        category,
-        transcript_path
-      FROM sessions
-      WHERE id = ${id}
-    `;
-
-    if (rows.length === 0) {
-      return c.json({ success: false, error: 'Session not found' }, 404);
-    }
-
-    const session = rows[0];
-
-    // Optionally load transcript
-    if (with_transcript === 'true' && session.transcript_path) {
-      try {
-        const { readFileSync } = await import('fs');
-        const content = readFileSync(session.transcript_path, 'utf-8');
-        const messages = content
-          .trim()
-          .split('\n')
-          .filter(Boolean)
-          .map((line) => {
-            try {
-              return JSON.parse(line);
-            } catch {
-              return null;
-            }
-          })
-          .filter(Boolean);
-        (session as Record<string, unknown>).messages = messages;
-      } catch {
-        // Transcript file not accessible
-      }
-    }
-
-    return c.json({
-      success: true,
-      data: session,
-    });
-  } catch (error) {
-    console.error('Get session error:', error);
-    return c.json({ success: false, error: 'Failed to get session' }, 500);
-  }
-});
-
-/**
  * Get session statistics
+ *
+ * Must be declared before `/sessions/:id` — Hono matches routes in
+ * declaration order, so the `:id` route would otherwise catch `/stats`.
  */
 app.get('/sessions/stats', async (c) => {
   const { days } = c.req.query();
@@ -284,6 +224,79 @@ app.get('/sessions/stats', async (c) => {
   } catch (error) {
     console.error('Stats error:', error);
     return c.json({ success: false, error: 'Failed to get stats' }, 500);
+  }
+});
+
+/**
+ * Get single session by ID
+ */
+app.get('/sessions/:id', async (c) => {
+  const { id } = c.req.param();
+  const { with_transcript } = c.req.query();
+
+  try {
+    const rows = await sql`
+      SELECT
+        id,
+        started_at,
+        ended_at,
+        git_branch,
+        cwd,
+        version,
+        hostname,
+        message_count,
+        input_tokens,
+        output_tokens,
+        cache_creation_tokens,
+        cache_read_tokens,
+        tools_used,
+        files_touched,
+        user_messages,
+        models_used,
+        model_tokens,
+        summary,
+        category,
+        transcript_path
+      FROM sessions
+      WHERE id = ${id}
+    `;
+
+    if (rows.length === 0) {
+      return c.json({ success: false, error: 'Session not found' }, 404);
+    }
+
+    const session = rows[0];
+
+    // Optionally load transcript
+    if (with_transcript === 'true' && session.transcript_path) {
+      try {
+        const { readFileSync } = await import('fs');
+        const content = readFileSync(session.transcript_path, 'utf-8');
+        const messages = content
+          .trim()
+          .split('\n')
+          .filter(Boolean)
+          .map((line) => {
+            try {
+              return JSON.parse(line);
+            } catch {
+              return null;
+            }
+          })
+          .filter(Boolean);
+        (session as Record<string, unknown>).messages = messages;
+      } catch {
+        // Transcript file not accessible
+      }
+    }
+
+    return c.json({
+      success: true,
+      data: session,
+    });
+  } catch (error) {
+    console.error('Get session error:', error);
+    return c.json({ success: false, error: 'Failed to get session' }, 500);
   }
 });
 
