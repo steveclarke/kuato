@@ -6,7 +6,7 @@ services:
     container_name: claude-sessions-db
     environment:
       POSTGRES_USER: claude
-      POSTGRES_PASSWORD: sessions
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sessions}
       POSTGRES_DB: claude_sessions
     ports:
       - "5433:5432"  # Different port to avoid conflicts
@@ -18,6 +18,31 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # Daily pg_dump backups with rotation.
+  # Keeps last 14 daily, 4 weekly, 6 monthly dumps under ./backups.
+  # Times are UTC. BACKUP_OPTIONS uses --clean to emit DROP statements for
+  # safer restores.
+  pgbackup:
+    image: prodrigestivill/postgres-backup-local:16-alpine
+    container_name: claude-sessions-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: claude_sessions
+      POSTGRES_USER: claude
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sessions}
+      POSTGRES_EXTRA_OPTS: "--clean --if-exists"
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: "14"
+      BACKUP_KEEP_WEEKS: "4"
+      BACKUP_KEEP_MONTHS: "6"
+      HEALTHCHECK_PORT: "8080"
+    volumes:
+      - ./backups:/backups
 
 volumes:
   postgres_data:

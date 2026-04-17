@@ -5,6 +5,8 @@ node_modules/
 
 # Database
 postgres_data/
+postgres/backups/
+docker-compose.override.yml
 
 # Bun
 bun.lockb
