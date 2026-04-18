@@ -30,7 +30,19 @@ const DEFAULT_SESSIONS_DIR =
 const HOSTNAME = process.env.KUATO_HOSTNAME || hostname();
 
 // Connect to database
-const sql = postgres(DATABASE_URL);
+//
+// onnotice: Postgres emits a NOTICE (code 54000, "word is too long to be
+// indexed") for every tsvector token over 2047 chars. Long tool-call output
+// or pasted blobs in user_messages trigger it on most syncs and dwarf the
+// real log output. The token is just skipped in the search index — the
+// insert still succeeds — so we silence that specific code and surface
+// anything else.
+const sql = postgres(DATABASE_URL, {
+  onnotice: (notice) => {
+    if (notice.code === '54000') return;
+    console.warn(notice);
+  },
+});
 
 interface SyncOptions {
   all?: boolean;
