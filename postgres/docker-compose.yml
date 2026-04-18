@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: claude-sessions-db
     environment:
       POSTGRES_USER: claude
@@ -24,7 +24,7 @@ services:
   # Times are UTC. BACKUP_OPTIONS uses --clean to emit DROP statements for
   # safer restores.
   pgbackup:
-    image: prodrigestivill/postgres-backup-local:16-alpine
+    image: prodrigestivill/postgres-backup-local:18-alpine
     container_name: claude-sessions-backup
     restart: unless-stopped
     depends_on:
