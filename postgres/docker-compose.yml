@@ -35,7 +35,7 @@ services:
       POSTGRES_DB: claude_sessions
       POSTGRES_USER: claude
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sessions}
-      POSTGRES_EXTRA_OPTS: "--clean --if-exists"
+      POSTGRES_EXTRA_OPTS: "--clean --if-exists --compress=gzip:5"
       SCHEDULE: "@daily"
       BACKUP_KEEP_DAYS: "14"
       BACKUP_KEEP_WEEKS: "4"
