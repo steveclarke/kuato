@@ -7,13 +7,14 @@
 --   /Users/<name>/.claude/projects/... → macOS machine
 --   /home/<name>/.claude/projects/...  → Linux machine
 --
--- For our current fleet: Mac Studio + uber-om. Adjust the mapping below
--- if more machines join.
+-- Hostnames match what os.hostname() returns on each machine:
+--   macstudio.home (Mac Studio), uber-om (Arch)
+-- Adjust the mapping below if more machines join.
 --
 -- Safe to re-run. Only touches rows where hostname IS NULL.
 
 UPDATE sessions
-SET hostname = 'mac-studio'
+SET hostname = 'macstudio.home'
 WHERE hostname IS NULL
   AND transcript_path LIKE '/Users/steve/%';
 

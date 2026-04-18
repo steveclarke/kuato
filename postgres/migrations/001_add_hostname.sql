@@ -2,8 +2,11 @@
 --
 -- Records which machine a session was synced from. Populated by sync.ts
 -- via os.hostname() from that point forward. Existing rows backfilled
--- heuristically from files_touched paths (/Users/steve/* = Mac Studio,
+-- heuristically from files_touched paths (/Users/steve/* = macstudio.home,
 -- /home/steve/* = Arch box 'uber-om').
+--
+-- Hostnames match what `os.hostname()` actually returns on each machine:
+--   uber-om, macstudio.home, Steves-MacBook-Air.local, ubu (retired)
 --
 -- Safe to re-run.
 
@@ -21,7 +24,7 @@ WHERE hostname IS NULL
   );
 
 UPDATE sessions
-SET hostname = 'mac-studio'
+SET hostname = 'macstudio.home'
 WHERE hostname IS NULL
   AND EXISTS (
     SELECT 1 FROM jsonb_array_elements_text(files_touched) f
