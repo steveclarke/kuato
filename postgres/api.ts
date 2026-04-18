@@ -184,7 +184,7 @@ app.get('/sessions/stats', async (c) => {
         MIN(started_at) as earliest_session,
         MAX(ended_at) as latest_session
       FROM sessions
-      WHERE ended_at > NOW() - INTERVAL '${daysNum} days'
+      WHERE ended_at > NOW() - (INTERVAL '1 day' * ${daysNum})
     `;
 
     // Category breakdown
@@ -193,7 +193,7 @@ app.get('/sessions/stats', async (c) => {
         category,
         COUNT(*) as count
       FROM sessions
-      WHERE ended_at > NOW() - INTERVAL '${daysNum} days'
+      WHERE ended_at > NOW() - (INTERVAL '1 day' * ${daysNum})
         AND category IS NOT NULL
       GROUP BY category
       ORDER BY count DESC
@@ -207,7 +207,7 @@ app.get('/sessions/stats', async (c) => {
         SUM((model_value->>'output')::bigint) as output_tokens
       FROM sessions,
         jsonb_each(model_tokens) as m(model_key, model_value)
-      WHERE ended_at > NOW() - INTERVAL '${daysNum} days'
+      WHERE ended_at > NOW() - (INTERVAL '1 day' * ${daysNum})
       GROUP BY model_key
       ORDER BY input_tokens DESC
     `;
