@@ -20,6 +20,7 @@ import { createHash } from 'crypto';
 import { parseArgs } from 'util';
 import postgres from 'postgres';
 import { parseSessionFile, getSearchableText } from '../shared/parser.js';
+import { redactString, redactTree } from '../shared/redact.js';
 import type { ParsedSession } from '../shared/types.js';
 
 // Configuration
@@ -166,8 +167,13 @@ async function syncSession(
       return 'skipped';
     }
 
-    // Build search text from user messages
-    const searchText = session.userMessages.join(' ');
+    // Scrub profanity before anything hits the DB. Intentionally destructive —
+    // raw words are gone once stored. Tune word lists in shared/redact.ts.
+    const redactedUserMessages = session.userMessages.map(redactString);
+    const redactedTranscript = redactTree(session.rawMessages) as unknown[];
+
+    // Build search text from the redacted user messages
+    const searchText = redactedUserMessages.join(' ');
 
     // Upsert session
     await sql`
@@ -207,13 +213,13 @@ async function syncSession(
         ${session.outputTokens},
         ${session.cacheCreationTokens},
         ${session.cacheReadTokens},
-        ${sql.json(session.userMessages)},
+        ${sql.json(redactedUserMessages)},
         ${sql.json(session.toolsUsed)},
         ${sql.json(session.filesFromToolCalls)},
         ${sql.json(session.modelsUsed)},
         ${sql.json(session.modelTokens)},
         ${searchText},
-        ${sql.json(session.rawMessages)},
+        ${sql.json(redactedTranscript)},
         ${filePath},
         ${hash},
         NOW()
