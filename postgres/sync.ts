@@ -280,7 +280,8 @@ async function sync(baseDir: string, options: SyncOptions): Promise<SyncStats> {
   // Process each file
   for (const { path: filePath } of files) {
     const result = await syncSession(filePath, existingHashes, options);
-    stats[result]++;
+    const key = result === 'error' ? 'errors' : result;
+    stats[key]++;
 
     if (result !== 'skipped') {
       console.log(`  ${result}: ${filePath}`);

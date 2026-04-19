@@ -57,12 +57,19 @@ const censor = new TextCensor();
 /**
  * Scrub profanity from a single string. Returns the string unchanged
  * if nothing matches, so callers don't need to diff.
+ *
+ * Also strips NUL (\u0000) bytes: Postgres JSON and TEXT columns reject
+ * them outright (`unsupported Unicode escape sequence`), and JSONL rows
+ * containing binary-file previews (ELF headers, images read by a tool,
+ * etc.) will otherwise abort the whole upsert. Cheap to do here since
+ * every string bound for the DB already passes through this function.
  */
 export function redactString(input: string): string {
   if (!input) return input;
-  const matches = matcher.getAllMatches(input);
-  if (matches.length === 0) return input;
-  return censor.applyTo(input, matches);
+  const sanitized = input.includes('\u0000') ? input.replace(/\u0000/g, '') : input;
+  const matches = matcher.getAllMatches(sanitized);
+  if (matches.length === 0) return sanitized;
+  return censor.applyTo(sanitized, matches);
 }
 
 /**
