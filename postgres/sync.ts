@@ -190,6 +190,7 @@ async function syncSession(
         models_used,
         model_tokens,
         search_text,
+        transcript,
         transcript_path,
         transcript_hash,
         synced_at
@@ -212,6 +213,7 @@ async function syncSession(
         ${sql.json(session.modelsUsed)},
         ${sql.json(session.modelTokens)},
         ${searchText},
+        ${sql.json(session.rawMessages)},
         ${filePath},
         ${hash},
         NOW()
@@ -234,6 +236,7 @@ async function syncSession(
         models_used = EXCLUDED.models_used,
         model_tokens = EXCLUDED.model_tokens,
         search_text = EXCLUDED.search_text,
+        transcript = EXCLUDED.transcript,
         transcript_path = EXCLUDED.transcript_path,
         transcript_hash = EXCLUDED.transcript_hash,
         synced_at = NOW()

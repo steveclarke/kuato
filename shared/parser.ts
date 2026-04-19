@@ -39,11 +39,14 @@ export function parseSessionContent(
   }
 
   const messages: SessionMessage[] = [];
+  const rawMessages: unknown[] = [];
 
   for (const line of lines) {
     try {
       const parsed = JSON.parse(line);
-      // Only include user/assistant messages (skip summary, system, etc.)
+      // Archive every valid line (summary, system, user, assistant, etc.)
+      rawMessages.push(parsed);
+      // Metadata extraction only looks at user/assistant conversation turns
       if (parsed.type === 'user' || parsed.type === 'assistant') {
         messages.push(parsed as SessionMessage);
       }
@@ -155,6 +158,7 @@ export function parseSessionContent(
     filesFromToolCalls: Array.from(filesFromToolCalls),
     modelsUsed: Array.from(modelsUsed),
     modelTokens,
+    rawMessages,
   };
 }
 

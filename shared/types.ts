@@ -84,6 +84,11 @@ export interface ParsedSession {
     cacheCreation: number;
     cacheRead: number;
   }>;
+
+  // Full archival transcript — every successfully-parsed JSONL line as-is.
+  // Stored in Postgres as JSONB so the DB survives Claude Code's local
+  // cleanup of `~/.claude/projects/*.jsonl` files.
+  rawMessages: unknown[];
 }
 
 /**

@@ -41,6 +41,10 @@ CREATE TABLE IF NOT EXISTS sessions (
     transcript_path TEXT,
     transcript_hash VARCHAR(32),  -- MD5 for change detection
 
+    -- Full archival transcript (every parsed JSONL line). Survives local
+    -- JSONL cleanup. Nullable for rows predating migration 003.
+    transcript JSONB,
+
     -- Optional classification (if you want to add LLM summaries later)
     summary TEXT,
     category VARCHAR(100),

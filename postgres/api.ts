@@ -238,31 +238,60 @@ app.get('/sessions/:id', async (c) => {
   const { with_transcript } = c.req.query();
 
   try {
-    const rows = await sql`
-      SELECT
-        id,
-        started_at,
-        ended_at,
-        git_branch,
-        cwd,
-        version,
-        hostname,
-        message_count,
-        input_tokens,
-        output_tokens,
-        cache_creation_tokens,
-        cache_read_tokens,
-        tools_used,
-        files_touched,
-        user_messages,
-        models_used,
-        model_tokens,
-        summary,
-        category,
-        transcript_path
-      FROM sessions
-      WHERE id = ${id}
-    `;
+    const withTranscript = with_transcript === 'true';
+
+    const rows = withTranscript
+      ? await sql`
+          SELECT
+            id,
+            started_at,
+            ended_at,
+            git_branch,
+            cwd,
+            version,
+            hostname,
+            message_count,
+            input_tokens,
+            output_tokens,
+            cache_creation_tokens,
+            cache_read_tokens,
+            tools_used,
+            files_touched,
+            user_messages,
+            models_used,
+            model_tokens,
+            summary,
+            category,
+            transcript_path,
+            transcript
+          FROM sessions
+          WHERE id = ${id}
+        `
+      : await sql`
+          SELECT
+            id,
+            started_at,
+            ended_at,
+            git_branch,
+            cwd,
+            version,
+            hostname,
+            message_count,
+            input_tokens,
+            output_tokens,
+            cache_creation_tokens,
+            cache_read_tokens,
+            tools_used,
+            files_touched,
+            user_messages,
+            models_used,
+            model_tokens,
+            summary,
+            category,
+            transcript_path
+          FROM sessions
+          WHERE id = ${id}
+        `;
 
     if (rows.length === 0) {
       return c.json({ success: false, error: 'Session not found' }, 404);
@@ -270,27 +299,35 @@ app.get('/sessions/:id', async (c) => {
 
     const session = rows[0];
 
-    // Optionally load transcript
-    if (with_transcript === 'true' && session.transcript_path) {
-      try {
-        const { readFileSync } = await import('fs');
-        const content = readFileSync(session.transcript_path, 'utf-8');
-        const messages = content
-          .trim()
-          .split('\n')
-          .filter(Boolean)
-          .map((line) => {
-            try {
-              return JSON.parse(line);
-            } catch {
-              return null;
-            }
-          })
-          .filter(Boolean);
-        (session as Record<string, unknown>).messages = messages;
-      } catch {
-        // Transcript file not accessible
+    // Optionally attach transcript. Prefer the archived JSONB column;
+    // fall back to reading the local JSONL file for pre-migration-003
+    // rows whose transcript hasn't been backfilled yet.
+    if (withTranscript) {
+      if (Array.isArray(session.transcript)) {
+        (session as Record<string, unknown>).messages = session.transcript;
+      } else if (session.transcript_path) {
+        try {
+          const { readFileSync } = await import('fs');
+          const content = readFileSync(session.transcript_path, 'utf-8');
+          const messages = content
+            .trim()
+            .split('\n')
+            .filter(Boolean)
+            .map((line) => {
+              try {
+                return JSON.parse(line);
+              } catch {
+                return null;
+              }
+            })
+            .filter(Boolean);
+          (session as Record<string, unknown>).messages = messages;
+        } catch {
+          // Transcript file not accessible (machine retired, file rotated)
+        }
       }
+      // Don't leak the raw column alongside the normalized messages field.
+      delete (session as Record<string, unknown>).transcript;
     }
 
     return c.json({
