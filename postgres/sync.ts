@@ -28,7 +28,13 @@ const DATABASE_URL = process.env.DATABASE_URL || 'postgres://localhost/claude_se
 const DEFAULT_SESSIONS_DIR =
   process.env.CLAUDE_SESSIONS_DIR ||
   join(process.env.HOME || '', '.claude', 'projects');
-const HOSTNAME = process.env.KUATO_HOSTNAME || hostname();
+// RECALL_HOSTNAME overrides the hostname stamped on rows. Primarily used
+// for one-time imports from a retired machine where os.hostname() on the
+// importing host doesn't reflect where the sessions originally came from.
+// Accepts the legacy KUATO_HOSTNAME name too for any scheduler configs
+// that haven't been migrated yet.
+const HOSTNAME =
+  process.env.RECALL_HOSTNAME || process.env.KUATO_HOSTNAME || hostname();
 
 // Connect to database
 //

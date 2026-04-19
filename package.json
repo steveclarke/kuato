@@ -1,7 +1,7 @@
 {
-  "name": "kuato",
+  "name": "recall",
   "version": "0.1.0",
-  "description": "Open your mind. Session memory for Claude Code.",
+  "description": "Durable, cross-machine archive of every Claude Code session.",
   "type": "module",
   "scripts": {
     "search": "bun run file-based/search.ts",
@@ -15,14 +15,13 @@
     "sessions",
     "search",
     "memory",
-    "kuato",
-    "total-recall"
+    "recall"
   ],
-  "author": "Alex Hillman",
+  "author": "Steve Clarke <steve@sevenview.ca>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/alexknowshtml/kuato"
+    "url": "https://github.com/steveclarke/recall"
   },
   "dependencies": {
     "obscenity": "^0.4.6"
