@@ -65,6 +65,66 @@ interface SyncStats {
   errors: number;
 }
 
+// Postgres caps the combined size of a jsonb array's elements at 256MB
+// (jsonb_util.c, "total size of jsonb array elements exceeds the maximum").
+// A handful of very long sessions exceed that and would fail the whole insert,
+// losing the metadata and search text along with the transcript. Cap well
+// under the hard limit — jsonb's binary form carries per-key overhead the
+// serialized length doesn't account for.
+const MAX_TRANSCRIPT_BYTES = 128 * 1024 * 1024;
+
+/**
+ * Trim an oversized transcript to fit the jsonb array limit.
+ *
+ * Keeps the head and tail of the conversation — where the task and its
+ * outcome live — and replaces the middle with a marker recording how many
+ * messages were dropped. Returns the transcript unchanged when it already
+ * fits. The full JSONL always remains on disk at transcript_path.
+ */
+function capTranscript(messages: unknown[]): {
+  transcript: unknown[];
+  droppedMessages: number;
+} {
+  if (Buffer.byteLength(JSON.stringify(messages)) <= MAX_TRANSCRIPT_BYTES) {
+    return { transcript: messages, droppedMessages: 0 };
+  }
+
+  // Walk inward from both ends, taking whichever side is currently smaller so
+  // head and tail grow together, until the next message would breach the cap.
+  const sizes = messages.map((m) => Buffer.byteLength(JSON.stringify(m)) + 1);
+  const budget = MAX_TRANSCRIPT_BYTES - 1024; // room for the marker object
+  let used = 0;
+  let head = 0;
+  let tail = 0;
+
+  while (head + tail < messages.length) {
+    const takeHead = head <= tail;
+    const index = takeHead ? head : messages.length - 1 - tail;
+    if (used + sizes[index] > budget) break;
+    used += sizes[index];
+    if (takeHead) head++;
+    else tail++;
+  }
+
+  const dropped = messages.length - head - tail;
+  if (dropped <= 0) {
+    return { transcript: messages, droppedMessages: 0 };
+  }
+
+  return {
+    transcript: [
+      ...messages.slice(0, head),
+      {
+        _recall_truncated: true,
+        dropped_messages: dropped,
+        reason: `Transcript exceeded ${MAX_TRANSCRIPT_BYTES} bytes; middle removed. Full transcript remains in the source JSONL.`,
+      },
+      ...messages.slice(messages.length - tail),
+    ],
+    droppedMessages: dropped,
+  };
+}
+
 /**
  * Calculate MD5 hash of file contents
  */
@@ -176,7 +236,15 @@ async function syncSession(
     // Scrub profanity before anything hits the DB. Intentionally destructive —
     // raw words are gone once stored. Tune word lists in shared/redact.ts.
     const redactedUserMessages = session.userMessages.map(redactString);
-    const redactedTranscript = redactTree(session.rawMessages) as unknown[];
+    const { transcript: redactedTranscript, droppedMessages } = capTranscript(
+      redactTree(session.rawMessages) as unknown[]
+    );
+
+    if (droppedMessages > 0) {
+      console.warn(
+        `  truncated transcript for ${filePath}: dropped ${droppedMessages} middle messages to fit the jsonb size limit`
+      );
+    }
 
     // Build search text from the redacted user messages
     const searchText = redactedUserMessages.join(' ');
